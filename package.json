@@ -1,0 +1,37 @@
+{
+  "name": "@github1/injection",
+  "version": "0.2.3",
+  "description": "A TypeScript dependency injection library",
+  "main": "./dist/src/index.js",
+  "types": "./dist/src/index.d.ts",
+  "scripts": {
+    "clean": "rimraf coverage dist tmp",
+    "watch": "tsc -w -p tsconfig.release.json",
+    "lint": "tslint -t stylish --exclude '**/*.js' --project 'tsconfig.json'",
+    "prepublishOnly": "npm run build",
+    "pretest": "npm run lint",
+    "test": "jest --runInBand --coverage",
+    "test:watch": "jest --watch",
+    "build": "npm run -s clean && npm run -s lint && tsc -p tsconfig.release.json",
+    "build:only": "npm run -s clean && tsc -p tsconfig.release.json"
+  },
+  "author": "John Collier <john.collier4@gmail.com>",
+  "license": "MIT",
+  "dependencies": {
+    "reflect-metadata": "^0.1.13",
+    "tslib": "1.9.3",
+    "uuid": "^3.2.1"
+  },
+  "devDependencies": {
+    "@types/jest": "^24.0.6",
+    "@types/node": "^8.0.26",
+    "@types/uuid": "^3.4.3",
+    "jest": "23.6.0",
+    "rimraf": "^2.6.1",
+    "ts-jest": "^23.10.5",
+    "ts-node": "^8.0.2",
+    "tslint": "^5.12.1",
+    "tslint-microsoft-contrib": "^6.0.0",
+    "typescript": "3.3.3"
+  }
+}
