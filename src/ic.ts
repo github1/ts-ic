@@ -10,7 +10,6 @@ import {
   Injectable,
   StaticInjectable,
   PromiseInjectable,
-  UNMET_CONDITION,
 } from './injectable';
 import {classParameterInjectionContext, CONSTRUCTOR_KEY} from './inject';
 import {
@@ -122,10 +121,7 @@ export class ICScope implements ICC {
   }
 
   public hasSelector(selector : Selector) : boolean {
-    if (this.registry.has(selector)) {
-      return UNMET_CONDITION !== this.registry.get(selector).get(this);
-    }
-    return false;
+    return this.registry.has(selector) && this.registry.get(selector).evaluate(this);
   }
 
   public getInjectable(selector: Selector): Injectable {

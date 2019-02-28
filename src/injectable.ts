@@ -5,16 +5,29 @@ import {
   Selector,
 } from './interfaces';
 
-export const UNMET_CONDITION: Promise<any> = 'UNMET_CONDITION' as any as Promise<any>;
-
 export interface Injectable {
-  get(creator: ICCreator) : Promise<any>;
+  evaluate(ic: ICInterrogatable): boolean;
+  get(creator: ICCreator): Promise<any>;
+}
+
+export class ConditionalInjectable implements Injectable {
+  constructor(private readonly injectable: Injectable,
+              private readonly condition: (icc?: ICInterrogatable) => boolean) {
+  }
+  public evaluate(): boolean {
+    return this.condition();
+  }
+  public get(creator: ICCreator): Promise<any> {
+    return this.injectable.get(creator);
+  }
 }
 
 export class StaticInjectable implements Injectable {
   constructor(private readonly value : any) {
   }
-
+  public evaluate(): boolean {
+    return true;
+  }
   public get(creator: ICCreator) : Promise<any> {
     return Promise.resolve(this.value);
   }
@@ -23,26 +36,19 @@ export class StaticInjectable implements Injectable {
 export class FactoryInjectable implements Injectable {
   constructor(private readonly func : (creator?: ICCreator) => any) {
   }
-
+  public evaluate(): boolean {
+    return true;
+  }
   public get(creator: ICCreator) : Promise<any> {
     return Promise.resolve(this.func(creator));
   }
 }
 
-export class ConditionalInjectable implements Injectable {
-  constructor(private readonly injectable: Injectable,
-              private readonly condition: (icc?: ICInterrogatable) => boolean) {
-  }
-  public get(creator: ICCreator) : Promise<any> {
-    if(!this.condition(creator as any as ICInterrogatable)) {
-      return UNMET_CONDITION as any as Promise<any>;
-    }
-    return this.injectable.get(creator);
-  }
-}
-
 export class PromiseInjectable implements Injectable {
   constructor(private readonly promise: Promise<any>) {
+  }
+  public evaluate(): boolean {
+    return true;
   }
   public get() : Promise<any> {
     return this.promise;
