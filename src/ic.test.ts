@@ -6,28 +6,40 @@ describe('inject', () => {
   });
   describe('scopes', () => {
     it('injects with scopes', async () => {
-      expect.assertions(8);
+      expect.assertions(10);
 
       IC.register(String, 'value@rootScope');
       IC.register('str2', 'str2@rootScope');
 
+      // scope 1
       let something : Something = await IC.wire<Something>(Something);
       expect(something.value).toBe('value@rootScope');
       expect(something.value2).toBe('str2@rootScope');
 
+      // scope 2 (detached)
       let scope : ICC = await IC.scope();
       scope.register(String, 'value@scope2');
       something = await scope.wire<Something>(Something);
       expect(something.value).toBe('value@scope2');
       expect(something.value2).toBe('str2@rootScope');
 
-      await IC.scope(async (scope : ICC) => {
+      // scope 3
+      await IC.scope(async (scope : IC) => {
         scope.register(String, 'value@scope3');
         something = await scope.wire<Something>(Something);
         expect(something.value).toBe('value@scope3');
         expect(something.value2).toBe('str2@rootScope');
       });
 
+      // scope 4
+      await IC.scope(async () => {
+        IC.register(String, 'value@scope4');
+        something = await IC.wire<Something>(Something);
+        expect(something.value).toBe('value@scope4');
+        expect(something.value2).toBe('str2@rootScope');
+      });
+
+      // scope 1
       something = await IC.wire<Something>(Something);
       expect(something.value).toBe('value@rootScope');
       expect(something.value2).toBe('str2@rootScope');
@@ -86,7 +98,7 @@ describe('inject', () => {
         } catch (err) {
           expect(err).toBeDefined();
         }
-        const scope: ICC = await IC.scope();
+        const scope : ICC = await IC.scope();
         await scope.withConfig(Config).create('c');
       });
       it('injects if the condition evaluates to true', async () => {

@@ -7,7 +7,7 @@ import {
 } from './interfaces';
 import {Injectable, PromiseInjectable, StaticInjectable,} from './injectable';
 import {classParameterInjectionContext, CONSTRUCTOR_KEY} from './inject';
-import {createParams,} from './util';
+import {createParams} from './util';
 import {v4} from 'uuid';
 
 const scopes : ICC[] = [];
@@ -22,7 +22,7 @@ const createFromAllScopes = <T>(
   index : number = 0,
   providedScopes : ICC[] = scopes) : Promise<T> => {
   return new Promise((resolve, reject) => {
-    const ic : ICScope = scopeAt(index, providedScopes) as ICScope;
+    const ic : IC = scopeAt(index, providedScopes) as IC;
     if (ic) {
       if (ic.hasSelector(selector)) {
         const injectable : Injectable = ic.getInjectable(selector);
@@ -56,7 +56,7 @@ const wire = <T>(t : any, creator : ICCreator) : Promise<T> => {
   });
 };
 
-export class ICScope implements ICC {
+export class IC implements ICC {
   private readonly id : string;
   private readonly registry : Map<Selector, Injectable> = new Map<Selector, Injectable>();
 
@@ -64,8 +64,54 @@ export class ICScope implements ICC {
     this.id = id || v4();
   }
 
-  public toString() {
-    return this.id;
+  public static register(selector : Selector, injectable : any) : ICC {
+    scopeAt()
+      .register(selector, injectable);
+    return this;
+  }
+
+  public static create<T>(selector : Selector) : Promise<T> {
+    return createFromAllScopes(selector, this);
+  }
+
+  public static wire<T>(t : any) : Promise<T> {
+    return scopeAt()
+      .wire(t);
+  }
+
+  public static scope(handler? : (scope? : ICC) => void | Promise<any>) : Promise<IC> {
+    let newScope : IC = new IC();
+    if (handler) {
+      scopes.push(newScope);
+      const result : void | Promise<any> = handler(newScope);
+      if (result) {
+        return result.then(() => {
+          scopes.pop();
+          return newScope;
+        });
+      } else {
+        scopes.pop();
+      }
+    }
+    return Promise.resolve(newScope);
+  }
+
+  public static withConfig(...config : any[]) : typeof IC {
+    scopeAt()
+      .withConfig(...config);
+    return this;
+  }
+
+  public static hasSelector(selector : Selector) : boolean {
+    return hasSelectorFromAllScopes(selector);
+  }
+
+  public static resetAll() : ICC {
+    while (scopes.length > 1) {
+      scopes.pop();
+    }
+    scopes.push(new IC());
+    return this;
   }
 
   public register(selector : Selector, injectable : any) : ICC {
@@ -113,60 +159,10 @@ export class ICScope implements ICC {
     return this.registry.get(selector);
   }
 
+  public toString() {
+    return this.id;
+  }
+
 }
 
-class ICRootScopeReference extends ICScope {
-  public register(selector : Selector, injectable : any) : ICC {
-    scopeAt()
-      .register(selector, injectable);
-    return this;
-  }
-
-  public create<T>(selector : Selector) : Promise<T> {
-    return createFromAllScopes(selector, this);
-  }
-
-  public wire<T>(t : any) : Promise<T> {
-    return scopeAt()
-      .wire(t);
-  }
-
-  public scope(handler? : (scope? : ICC) => void | Promise<any>) : Promise<ICC> {
-    let newScope : ICScope = new ICScope();
-    if (handler) {
-      scopes.push(newScope);
-      const result : void | Promise<any> = handler(newScope);
-      if (result) {
-        return result.then(() => {
-          scopes.pop();
-          return newScope;
-        });
-      } else {
-        scopes.pop();
-      }
-    }
-    return Promise.resolve(newScope);
-  }
-
-  public withConfig(...config : any[]) : ICC {
-    scopeAt()
-      .withConfig(...config);
-    return this;
-  }
-
-  public hasSelector(selector : Selector) : boolean {
-    return hasSelectorFromAllScopes(selector);
-  }
-
-  public resetAll() : ICC {
-    while (scopes.length > 1) {
-      scopes.pop();
-    }
-    scopes.push(new ICScope());
-    return this;
-  }
-}
-
-scopes.push(new ICScope('static'), new ICScope());
-
-export const IC = new ICRootScopeReference();
+scopes.push(new IC('static'), new IC());
