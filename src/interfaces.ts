@@ -1,7 +1,3 @@
-/* tslint:disable:no-reserved-keywords */
-
-import { Registrator } from './injectable';
-
 export type Selector = any;
 
 export interface ICRegistrateable {
@@ -21,9 +17,3 @@ export interface ICC extends ICCreator, ICInterrogatable, ICRegistrateable {
   scope(scope : () => void | Promise<any>) : Promise<ICC>;
   withConfig(...config : any[]) : ICC;
 }
-
-export interface InjectionContext {
-  params : Map<number, Selector>;
-}
-
-export const typeRegistrator: Map<any, Registrator> = new Map<any, Registrator>();

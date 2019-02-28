@@ -1,20 +1,16 @@
 /* tslint:disable:no-parameter-reassignment */
-import {
-  ICCreator,
-  InjectionContext,
-  Selector,
-  typeRegistrator
-} from './interfaces';
-import {
-  FactoryInjectable,
-  Registrator,
-} from './injectable';
+import {ICCreator, Selector} from './interfaces';
+import {FactoryInjectable, Registrator, typeRegistrator} from './injectable';
 import {createParams} from './util';
 
 export const CONSTRUCTOR_KEY = '@@__constructor';
 
-export const classParameterInjectionContext : Map<any, Map<string | symbol, InjectionContext>> =
-  new Map<any, Map<string | symbol, InjectionContext>>();
+export interface ParameterInjectionContext {
+  params : Map<number, Selector>;
+}
+
+export const classParameterInjectionContext : Map<any, Map<string | symbol, ParameterInjectionContext>> =
+  new Map<any, Map<string | symbol, ParameterInjectionContext>>();
 
 export function inject(selector : Selector) {
   function decorator(
@@ -22,7 +18,7 @@ export function inject(selector : Selector) {
     propertyKey : string | symbol,
     parameterIndexOrPropertyDescriptor : number | TypedPropertyDescriptor<any>
   ) {
-    let injectionContext : InjectionContext;
+    let injectionContext : ParameterInjectionContext;
     let parameterIndex : number = -1;
     let typedPropertyDescriptor : TypedPropertyDescriptor<any>;
     const isParameterDecorator : boolean = typeof parameterIndexOrPropertyDescriptor === 'number';
@@ -34,15 +30,16 @@ export function inject(selector : Selector) {
         propertyKey = CONSTRUCTOR_KEY;
       }
       if (!classParameterInjectionContext.has(targetSelector)) {
-        classParameterInjectionContext.set(targetSelector, new Map<string | symbol, InjectionContext>());
+        classParameterInjectionContext.set(targetSelector, new Map<string | symbol, ParameterInjectionContext>());
       }
-      const parameterInjectionContext : Map<string | symbol, InjectionContext> = classParameterInjectionContext.get(targetSelector);
-      if (!parameterInjectionContext.has(propertyKey)) {
-        parameterInjectionContext.set(propertyKey, {
+      const parameterParameterInjectionContext : Map<string | symbol, ParameterInjectionContext>
+        = classParameterInjectionContext.get(targetSelector);
+      if (!parameterParameterInjectionContext.has(propertyKey)) {
+        parameterParameterInjectionContext.set(propertyKey, {
           params: new Map<number, Selector>()
         });
       }
-      injectionContext = parameterInjectionContext.get(propertyKey);
+      injectionContext = parameterParameterInjectionContext.get(propertyKey);
       if (injectionContext !== undefined) {
         injectionContext.params.set(parameterIndex, selector);
       }
@@ -52,7 +49,7 @@ export function inject(selector : Selector) {
       if (!typeRegistrator.has(target.constructor)) {
         typeRegistrator.set(target.constructor, new Registrator());
       }
-      const registrator: Registrator = typeRegistrator.get(target.constructor);
+      const registrator : Registrator = typeRegistrator.get(target.constructor);
 
       if (classParameterInjectionContext.has(target)
         && classParameterInjectionContext
@@ -61,11 +58,12 @@ export function inject(selector : Selector) {
         registrator.include(selector, new FactoryInjectable((creator : ICCreator) => {
           return createParams(classParameterInjectionContext
             .get(target)
-            .get(propertyKey), creator).then((params : any[]) => {
-            return typedPropertyDescriptor.value.apply(
-              this, // tslint:disable-line:no-invalid-this
-              params);
-          });
+            .get(propertyKey), creator)
+            .then((params : any[]) => {
+              return typedPropertyDescriptor.value.apply(
+                this, // tslint:disable-line:no-invalid-this
+                params);
+            });
         }));
       } else {
         registrator.include(selector, new FactoryInjectable(() => target[propertyKey]()));

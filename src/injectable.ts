@@ -1,8 +1,9 @@
+/* tslint:disable:no-reserved-keywords */
 import {
   ICCreator,
   ICInterrogatable,
   ICRegistrateable,
-  Selector,
+  Selector
 } from './interfaces';
 
 export interface Injectable {
@@ -14,8 +15,8 @@ export class ConditionalInjectable implements Injectable {
   constructor(private readonly injectable: Injectable,
               private readonly condition: (icc?: ICInterrogatable) => boolean) {
   }
-  public evaluate(): boolean {
-    return this.condition();
+  public evaluate(ic: ICInterrogatable): boolean {
+    return this.condition(ic);
   }
   public get(creator: ICCreator): Promise<any> {
     return this.injectable.get(creator);
@@ -25,7 +26,7 @@ export class ConditionalInjectable implements Injectable {
 export class StaticInjectable implements Injectable {
   constructor(private readonly value : any) {
   }
-  public evaluate(): boolean {
+  public evaluate(ic: ICInterrogatable): boolean {
     return true;
   }
   public get(creator: ICCreator) : Promise<any> {
@@ -36,7 +37,7 @@ export class StaticInjectable implements Injectable {
 export class FactoryInjectable implements Injectable {
   constructor(private readonly func : (creator?: ICCreator) => any) {
   }
-  public evaluate(): boolean {
+  public evaluate(ic: ICInterrogatable): boolean {
     return true;
   }
   public get(creator: ICCreator) : Promise<any> {
@@ -47,7 +48,7 @@ export class FactoryInjectable implements Injectable {
 export class PromiseInjectable implements Injectable {
   constructor(private readonly promise: Promise<any>) {
   }
-  public evaluate(): boolean {
+  public evaluate(ic: ICInterrogatable): boolean {
     return true;
   }
   public get() : Promise<any> {
@@ -68,3 +69,4 @@ export class Registrator {
   }
 }
 
+export const typeRegistrator: Map<any, Registrator> = new Map<any, Registrator>();

@@ -1,14 +1,16 @@
+import {ICC, ICCreator, Selector} from './interfaces';
 import {
-  ICC,
-  ICCreator,
-  InjectionContext,
-  Selector,
+  Injectable,
+  PromiseInjectable,
+  StaticInjectable,
   typeRegistrator
-} from './interfaces';
-import {Injectable, PromiseInjectable, StaticInjectable,} from './injectable';
-import {classParameterInjectionContext, CONSTRUCTOR_KEY} from './inject';
+} from './injectable';
+import {
+  classParameterInjectionContext,
+  CONSTRUCTOR_KEY,
+  ParameterInjectionContext
+} from './inject';
 import {createParams} from './util';
-import {v4} from 'uuid';
 
 const scopes : ICC[] = [];
 
@@ -21,7 +23,7 @@ const createFromAllScopes = <T>(
   creator : ICCreator,
   index : number = 0,
   providedScopes : ICC[] = scopes) : Promise<T> => {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve : (value : any) => void, reject : (error : Error) => void) => {
     const ic : IC = scopeAt(index, providedScopes) as IC;
     if (ic) {
       if (ic.hasSelector(selector)) {
@@ -48,12 +50,13 @@ const hasSelectorFromAllScopes = (selector : Selector, index : number = 0, provi
 };
 
 const wire = <T>(t : any, creator : ICCreator) : Promise<T> => {
-  const injectionContext : InjectionContext = classParameterInjectionContext
+  const injectionContext : ParameterInjectionContext = classParameterInjectionContext
     .get(t.name)
     .get(CONSTRUCTOR_KEY);
-  return createParams(injectionContext, creator).then((params : any[]) => {
-    return new t(...params) as T;
-  });
+  return createParams(injectionContext, creator)
+    .then((params : any[]) => {
+      return new t(...params) as T;
+    });
 };
 
 export class IC implements ICC {
@@ -61,10 +64,11 @@ export class IC implements ICC {
   private readonly registry : Map<Selector, Injectable> = new Map<Selector, Injectable>();
 
   constructor(id? : string) {
-    this.id = id || v4();
+    // tslint:disable-next-line:insecure-random
+    this.id = id || `scope::${Math.floor(Math.random() * 1000000000)}`;
   }
 
-  public static register(selector : Selector, injectable : any) : ICC {
+  public static register(selector : Selector, injectable : any) : typeof IC {
     scopeAt()
       .register(selector, injectable);
     return this;
@@ -79,8 +83,8 @@ export class IC implements ICC {
       .wire(t);
   }
 
-  public static scope(handler? : (scope? : ICC) => void | Promise<any>) : Promise<IC> {
-    let newScope : IC = new IC();
+  public static scope(handler? : (scope? : IC) => void | Promise<any>) : Promise<IC> {
+    const newScope : IC = new IC();
     if (handler) {
       scopes.push(newScope);
       const result : void | Promise<any> = handler(newScope);
@@ -106,7 +110,7 @@ export class IC implements ICC {
     return hasSelectorFromAllScopes(selector);
   }
 
-  public static resetAll() : ICC {
+  public static resetAll() : typeof IC {
     while (scopes.length > 1) {
       scopes.pop();
     }
@@ -114,7 +118,7 @@ export class IC implements ICC {
     return this;
   }
 
-  public register(selector : Selector, injectable : any) : ICC {
+  public register(selector : Selector, injectable : any) : IC {
     if (injectable === undefined) {
       throw new Error(`Registered undefined for selector ${selector}`);
     } else {
@@ -142,21 +146,28 @@ export class IC implements ICC {
     return wire(t, this);
   }
 
-  public scope(scope : () => void | Promise<any>) : Promise<ICC> {
+  public scope(scope : () => void | Promise<any>) : Promise<IC> {
     throw new Error('Not implemented');
   }
 
-  public withConfig(...config : any[]) : ICC {
-    config.forEach((config : any) => typeRegistrator.get(config).register(this));
+  public withConfig(...config : any[]) : IC {
+    config
+      .forEach((config : any) => typeRegistrator
+        .get(config)
+        .register(this));
     return this;
   }
 
   public hasSelector(selector : Selector) : boolean {
-    return this.registry.has(selector) && this.registry.get(selector).evaluate(this);
+    return this.registry
+      .has(selector) && this.registry
+      .get(selector)
+      .evaluate(this);
   }
 
   public getInjectable(selector : Selector) : Injectable {
-    return this.registry.get(selector);
+    return this.registry
+      .get(selector);
   }
 
   public toString() {

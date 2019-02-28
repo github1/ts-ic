@@ -126,6 +126,18 @@ class Config {
   public cValue(@inject('a') a : string) {
     return Promise.resolve(a);
   }
+
+  @inject({
+    selector: ''
+  })
+  public d1Value() {
+    return 'd-1';
+  }
+
+  @inject('d-2')
+  public d2Value() {
+    return 'd-2';
+  }
 }
 
 class Something {

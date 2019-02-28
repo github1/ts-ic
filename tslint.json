@@ -11,6 +11,7 @@
     "align": false,
     "completed-docs": false,
     "export-name": false,
+    "function-name": false,
     "interface-name": false,
     "linebreak-style": [
       true,
