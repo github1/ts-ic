@@ -4,11 +4,6 @@ import { Registrator } from './injectable';
 
 export type Selector = any;
 
-export class ConfigSelector implements Selector {
-  constructor(public selector: Selector) {
-  }
-}
-
 export interface ICRegistrateable {
   register(selector : Selector, injectable : any) : ICC;
 }

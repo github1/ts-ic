@@ -1,27 +1,16 @@
 import {
   ICC,
-  ConfigSelector,
+  ICCreator,
   InjectionContext,
   Selector,
-  ICCreator,
   typeRegistrator
 } from './interfaces';
-import {
-  Injectable,
-  StaticInjectable,
-  PromiseInjectable,
-} from './injectable';
+import {Injectable, PromiseInjectable, StaticInjectable,} from './injectable';
 import {classParameterInjectionContext, CONSTRUCTOR_KEY} from './inject';
-import {
-  createParams,
-} from './util';
+import {createParams,} from './util';
 import {v4} from 'uuid';
 
 const scopes : ICC[] = [];
-
-const rootScope = (providedScopes : ICC[] = scopes) : ICC => {
-  return providedScopes[0];
-};
 
 const scopeAt = (index : number = 0, providedScopes : ICC[] = scopes) : ICC => {
   return providedScopes[providedScopes.length - (index + 1)];
@@ -36,7 +25,7 @@ const createFromAllScopes = <T>(
     const ic : ICScope = scopeAt(index, providedScopes) as ICScope;
     if (ic) {
       if (ic.hasSelector(selector)) {
-        const injectable: Injectable = ic.getInjectable(selector);
+        const injectable : Injectable = ic.getInjectable(selector);
         resolve(injectable.get(creator));
       } else {
         resolve(createFromAllScopes(selector, creator, index + 1, providedScopes));
@@ -62,13 +51,12 @@ const wire = <T>(t : any, creator : ICCreator) : Promise<T> => {
   const injectionContext : InjectionContext = classParameterInjectionContext
     .get(t.name)
     .get(CONSTRUCTOR_KEY);
-  return createParams(injectionContext, creator).then((params: any[]) => {
+  return createParams(injectionContext, creator).then((params : any[]) => {
     return new t(...params) as T;
   });
 };
 
 export class ICScope implements ICC {
-  public attached : boolean = false;
   private readonly id : string;
   private readonly registry : Map<Selector, Injectable> = new Map<Selector, Injectable>();
 
@@ -113,10 +101,7 @@ export class ICScope implements ICC {
   }
 
   public withConfig(...config : any[]) : ICC {
-    //config.forEach((config : any) => this.configs.add(config));
-    config.forEach((config : any) => {
-      typeRegistrator.get(config).register(this);
-    });
+    config.forEach((config : any) => typeRegistrator.get(config).register(this));
     return this;
   }
 
@@ -124,7 +109,7 @@ export class ICScope implements ICC {
     return this.registry.has(selector) && this.registry.get(selector).evaluate(this);
   }
 
-  public getInjectable(selector: Selector): Injectable {
+  public getInjectable(selector : Selector) : Injectable {
     return this.registry.get(selector);
   }
 
@@ -132,13 +117,8 @@ export class ICScope implements ICC {
 
 class ICRootScopeReference extends ICScope {
   public register(selector : Selector, injectable : any) : ICC {
-    if (selector instanceof ConfigSelector) {
-      rootScope()
-        .register(selector.selector, injectable);
-    } else {
-      scopeAt()
-        .register(selector, injectable);
-    }
+    scopeAt()
+      .register(selector, injectable);
     return this;
   }
 
@@ -151,20 +131,17 @@ class ICRootScopeReference extends ICScope {
       .wire(t);
   }
 
-  public scope(handler? : (scope?: ICC) => void | Promise<any>) : Promise<ICC> {
+  public scope(handler? : (scope? : ICC) => void | Promise<any>) : Promise<ICC> {
     let newScope : ICScope = new ICScope();
     if (handler) {
-      newScope.attached = true;
       scopes.push(newScope);
-      const result: void | Promise<any> = handler(newScope);
+      const result : void | Promise<any> = handler(newScope);
       if (result) {
         return result.then(() => {
-          newScope.attached = false;
           scopes.pop();
           return newScope;
         });
       } else {
-        newScope.attached = false;
         scopes.pop();
       }
     }
