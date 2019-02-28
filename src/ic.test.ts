@@ -1,103 +1,118 @@
-import {IC, inject} from './';
+import {ConditionalInjectable, IC, ICC, inject, StaticInjectable,} from './';
 
 describe('inject', () => {
   beforeEach(() => {
     IC.resetAll();
   });
-  it('injects with scopes', () => {
-    IC.register(String, 'aString');
-    IC.register('str2', 'aString2');
-    expect(IC.wire<Something>(Something).value).toBe('aString');
-    IC.scope(() => {
-      IC.register(String, 'bString');
-      expect(IC.wire<Something>(Something).value).toBe('bString');
-    });
-    expect(IC.wire<Something>(Something).value).toBe('aString');
-  });
-  describe('async injectables', () => {
-    it('resolves async injectables', () => {
-      expect.assertions(1);
-      IC.register('somethingAsync', new Promise((resolve) => {
-        setTimeout(() => resolve('abc'), 100);
-      }));
-      return new Promise((resolve) => {
-        IC.scope(() => {
-          expect(IC.create('somethingAsync')).toBe('abc');
-          resolve();
-        });
+  describe('scopes', () => {
+    it('injects with scopes', async () => {
+      expect.assertions(8);
+
+      IC.register(String, 'value@rootScope');
+      IC.register('str2', 'str2@rootScope');
+
+      let something : Something = await IC.wire<Something>(Something);
+      expect(something.value).toBe('value@rootScope');
+      expect(something.value2).toBe('str2@rootScope');
+
+      let scope : ICC = await IC.scope();
+      scope.register(String, 'value@scope2');
+      something = await scope.wire<Something>(Something);
+      expect(something.value).toBe('value@scope2');
+      expect(something.value2).toBe('str2@rootScope');
+
+      await IC.scope(async (scope : ICC) => {
+        scope.register(String, 'value@scope3');
+        something = await scope.wire<Something>(Something);
+        expect(something.value).toBe('value@scope3');
+        expect(something.value2).toBe('str2@rootScope');
       });
+
+      something = await IC.wire<Something>(Something);
+      expect(something.value).toBe('value@rootScope');
+      expect(something.value2).toBe('str2@rootScope');
+
     });
-    it('throws exception for unresolved promises', () => {
+  });
+  describe('async', () => {
+    it('resolves async injectables', async () => {
       expect.assertions(1);
       IC.register('somethingAsync', new Promise((resolve) => {
         setTimeout(() => resolve('abc'), 100);
       }));
-      try {
-        IC.create('somethingAsync');
-      } catch (err) {
-        expect(err.message).toBe('Attempting to get unresolved injectable');
-      }
+      const resolved = await IC.create('somethingAsync');
+      expect(resolved).toBe('abc');
     });
   });
   describe('configuration classes', () => {
-    it('injects with configuration classes', () => {
-      expect(IC.withConfig(Config).wire<Something2>(Something2).value).toBe('theFoo');
-      IC.scope(() => {
-        IC.register('foo', 'anotherFoo');
-        expect(IC.wire<Something2>(Something2).value).toBe('anotherFoo');
+    it('injects with configuration classes', async () => {
+      IC.withConfig(Config);
+      let something2 : Something2;
+
+      something2 = await IC.wire(Something2);
+      expect(something2.value).toBe('a-value');
+
+      await IC.scope(async (scope : ICC) => {
+        scope.register('a', 'a-value@scope2');
+        something2 = await scope.wire(Something2);
+        expect(something2.value).toBe('a-value@scope2');
       });
-      expect(IC.wire<Something2>(Something2).value).toBe('theFoo');
+
+      something2 = await IC.wire(Something2);
+      expect(something2.value).toBe('a-value');
+
+      const scope : ICC = await IC.scope();
+      scope.register('a', 'a-value@scope2');
+      something2 = await scope.wire(Something2);
+      expect(something2.value).toBe('a-value@scope2');
     });
-    it('injects with scoped configuration classes', () => {
-      expect.assertions(4);
-      const expectNotInParentScope = () => {
+    it('only uses configuration classes in scope', async () => {
+      const scope = await IC.scope();
+      expect(await scope.withConfig(Config).create('a')).toBe('a-value');
+      try {
+        await IC.create('a');
+      } catch (err) {
+        expect(err).toBeDefined();
+      }
+    });
+  });
+  describe('injectables', () => {
+    describe('ConditionalInjectable', () => {
+      it('does not inject if the condition evaluates to false', async () => {
+        expect.assertions(1);
+        IC.register('a', new ConditionalInjectable(new StaticInjectable('a'), () => false));
         try {
-          IC.wire<Something2>(Something2);
+          await IC.create('a');
         } catch (err) {
-          expect(err.message).toContain('No dependency found for selector');
+          expect(err).toBeDefined();
         }
-      };
-      expectNotInParentScope();
-      const scope = IC.scope(() => {
-        IC.withConfig(Config);
-        expect(IC.wire<Something2>(Something2).value).toBe('theFoo');
+        const scope: ICC = await IC.scope();
+        await scope.withConfig(Config).create('c');
       });
-      scope.register('b', 'theFooOverride');
-      expect(scope.wire<Something2>(Something2).value).toBe('theFooOverride');
-      expectNotInParentScope();
+      it('injects if the condition evaluates to true', async () => {
+        expect.assertions(1);
+        IC.register('a', new ConditionalInjectable(new StaticInjectable('a'), () => true));
+        const value = await IC.create('a');
+        expect(value).toBe('a');
+      })
     });
-    it('injects dependencies from parent scope', () => {
-      IC.register('a', 'a-value');
-      expect(IC.scope().create('a')).toBe('a-value');
-    });
-    // it('injects async', () => {
-    //   return new Promise((resolve) => {
-    //     IC.scope().withConfig(Config).scope(() => {
-    //       try {
-    //         expect(IC.create('sasync')).toBe('theFoo');
-    //       } finally {
-    //         resolve();
-    //       }
-    //     });
-    //   });
-    // });
   });
 });
 
 class Config {
-  @inject('foo')
-  public foo() {
-    return 'theFoo';
+  @inject('a')
+  public aValue() {
+    return 'a-value';
   }
 
   @inject('b')
-  public something(@inject('foo') foo : string) {
-    return foo;
+  public bValue(@inject('a') a : string) {
+    return a;
   }
 
-  @inject('sasync')
-  public somethingAsync(@inject('foo') foo : string) {
-    return Promise.resolve(foo);
+  @inject('c')
+  public cValue(@inject('a') a : string) {
+    return Promise.resolve(a);
   }
 }
 

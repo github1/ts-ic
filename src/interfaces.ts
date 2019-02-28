@@ -1,5 +1,7 @@
 /* tslint:disable:no-reserved-keywords */
 
+import { Registrator } from './injectable';
+
 export type Selector = any;
 
 export class ConfigSelector implements Selector {
@@ -7,61 +9,27 @@ export class ConfigSelector implements Selector {
   }
 }
 
-export const NOT_IN_SCOPE = '@@__not_in_scope';
+export interface ICRegistrateable {
+  register(selector : Selector, injectable : any) : ICC;
+}
+
+export interface ICCreator{
+  create<T>(selector : Selector) : Promise<T>;
+}
+
+export interface ICInterrogatable {
+  hasConfig(selector : Selector) : boolean;
+  hasSelector(selector : Selector) : boolean;
+}
+
+export interface ICC extends ICCreator, ICInterrogatable, ICRegistrateable {
+  wire<T>(t : any) : Promise<T>;
+  scope(scope : () => void | Promise<any>) : Promise<ICC>;
+  withConfig(...config : any[]) : ICC;
+}
 
 export interface InjectionContext {
   params : Map<number, Selector>;
 }
 
-export interface Injectable {
-  get() : any;
-}
-
-export class StaticInjectable implements Injectable {
-  constructor(private readonly value : any) {
-  }
-
-  public get() : any {
-    return this.value;
-  }
-}
-
-export class FactoryInjectable implements Injectable {
-  constructor(private readonly func : () => any) {
-  }
-
-  public get() : any {
-    return this.func();
-  }
-}
-
-export class ConditionalInjectable implements Injectable {
-  constructor(private readonly injectable: Injectable, private readonly condition: () => boolean) {
-  }
-  public get() : any {
-    if(!this.condition()) {
-      return NOT_IN_SCOPE;
-    }
-    return this.injectable.get();
-  }
-}
-
-export class PromiseInjectable implements Injectable {
-  private resolved: any;
-  private isResolved: boolean = false;
-  constructor(private readonly promise: Promise<any>) {
-  }
-  public resolve(): Promise<any> {
-    return this.promise
-      .then((result: any) => {
-        this.isResolved = true;
-        this.resolved = result;
-    });
-  }
-  public get() : any {
-    if (!this.isResolved) {
-      throw new Error(`Attempting to get unresolved injectable`);
-    }
-    return this.resolved;
-  }
-}
+export const typeRegistrator: Map<any, Registrator> = new Map<any, Registrator>();
