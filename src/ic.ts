@@ -1,5 +1,6 @@
-import {ICC, ICCreator, Selector} from './interfaces';
+import {ICC, ICCreator, RichSelector, Selector} from './interfaces';
 import {
+  CompositeInjectable, ConditionalInjectable,
   Injectable,
   PromiseInjectable,
   StaticInjectable,
@@ -128,6 +129,15 @@ export class IC implements ICC {
       if (typeof injectable.get !== 'function') {
         return this.register(selector, new StaticInjectable(injectable));
       }
+      const richSelector : RichSelector = selector.selector ? selector : {selector: selector};
+      selector = richSelector.selector;
+      if (richSelector.condition) {
+        injectable = new ConditionalInjectable(injectable, richSelector.condition);
+      }
+      if (this.registry.has(selector)) {
+        let currentInjectable: Injectable = this.getInjectable(selector);
+        injectable = new CompositeInjectable([injectable, currentInjectable]);
+      }
       this.registry.set(selector, injectable);
     }
     return this;
@@ -135,9 +145,7 @@ export class IC implements ICC {
 
   public create<T>(selector : Selector) : Promise<T> {
     if (this.hasSelector(selector)) {
-      const injectable : Injectable = this.registry
-        .get(selector);
-      return injectable.get(this);
+      return this.getInjectable(selector).get(this);
     }
     return createFromAllScopes(selector, this);
   }
@@ -160,8 +168,8 @@ export class IC implements ICC {
 
   public hasSelector(selector : Selector) : boolean {
     return this.registry
-      .has(selector) && this.registry
-      .get(selector)
+      .has(selector) && this
+      .getInjectable(selector)
       .evaluate(this);
   }
 
@@ -169,6 +177,7 @@ export class IC implements ICC {
     return this.registry
       .get(selector);
   }
+
 
   public toString() {
     return this.id;

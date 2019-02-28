@@ -3,6 +3,7 @@ import {ConditionalInjectable, IC, ICC, inject, StaticInjectable,} from './';
 describe('inject', () => {
   beforeEach(() => {
     IC.resetAll();
+    Config.conditionValue = 0;
   });
   describe('scopes', () => {
     it('injects with scopes', async () => {
@@ -87,8 +88,43 @@ describe('inject', () => {
         expect(err).toBeDefined();
       }
     });
+    it('evaluates conditions on configuration selectors', async () => {
+      expect.assertions(4);
+      expect(await IC.withConfig(Config).create('d')).toBe('d-1');
+      Config.conditionValue = 1;
+      expect(await IC.withConfig(Config).create('d')).toBe('d-2');
+      Config.conditionValue = 0;
+      expect(await IC.withConfig(Config).create('d')).toBe('d-1');
+      Config.conditionValue = 2;
+      try {
+        await IC.withConfig(Config).create('d');
+      } catch (err) {
+        expect(err.message).toBe('No dependency found for selector d');
+      }
+    });
   });
-  describe('injectables', () => {
+  describe('register', () => {
+    describe('conditional selectors', () => {
+      it.only('registers injectables conditionally via selector condition functions', async () => {
+        let conditionValue = 1;
+        IC.register({
+          selector: 'a',
+          condition: () => conditionValue === 0
+        }, 'a');
+        try {
+          await IC.create('a');
+        } catch (err) {
+          expect(err.message).toBe('No dependency found for selector a');
+        }
+        IC.register({
+          selector: 'a',
+          condition: () => conditionValue === 1
+        }, 'b');
+        expect(await IC.create('a')).toBe('b');
+        conditionValue = 0;
+        expect(await IC.create('a')).toBe('a');
+      });
+    });
     describe('ConditionalInjectable', () => {
       it('does not inject if the condition evaluates to false', async () => {
         expect.assertions(1);
@@ -112,6 +148,9 @@ describe('inject', () => {
 });
 
 class Config {
+
+  public static conditionValue: number = 0;
+
   @inject('a')
   public aValue() {
     return 'a-value';
@@ -128,13 +167,17 @@ class Config {
   }
 
   @inject({
-    selector: ''
+    selector: 'd',
+    condition: () => Config.conditionValue === 0
   })
   public d1Value() {
     return 'd-1';
   }
 
-  @inject('d-2')
+  @inject({
+    selector: 'd',
+    condition: () => Config.conditionValue === 1
+  })
   public d2Value() {
     return 'd-2';
   }

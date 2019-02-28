@@ -8,7 +8,7 @@ import {
 
 export interface Injectable {
   evaluate(ic: ICInterrogatable): boolean;
-  get(creator: ICCreator): Promise<any>;
+  get(ic: ICCreator): Promise<any>;
 }
 
 export class ConditionalInjectable implements Injectable {
@@ -18,8 +18,8 @@ export class ConditionalInjectable implements Injectable {
   public evaluate(ic: ICInterrogatable): boolean {
     return this.condition(ic);
   }
-  public get(creator: ICCreator): Promise<any> {
-    return this.injectable.get(creator);
+  public get(ic: ICCreator): Promise<any> {
+    return this.injectable.get(ic);
   }
 }
 
@@ -29,7 +29,7 @@ export class StaticInjectable implements Injectable {
   public evaluate(ic: ICInterrogatable): boolean {
     return true;
   }
-  public get(creator: ICCreator) : Promise<any> {
+  public get(ic: ICCreator) : Promise<any> {
     return Promise.resolve(this.value);
   }
 }
@@ -40,8 +40,8 @@ export class FactoryInjectable implements Injectable {
   public evaluate(ic: ICInterrogatable): boolean {
     return true;
   }
-  public get(creator: ICCreator) : Promise<any> {
-    return Promise.resolve(this.func(creator));
+  public get(ic: ICCreator) : Promise<any> {
+    return Promise.resolve(this.func(ic));
   }
 }
 
@@ -51,9 +51,30 @@ export class PromiseInjectable implements Injectable {
   public evaluate(ic: ICInterrogatable): boolean {
     return true;
   }
-  public get() : Promise<any> {
+  public get(ic: ICCreator) : Promise<any> {
     return this.promise;
   }
+}
+
+export class CompositeInjectable implements Injectable {
+  constructor(private readonly injectables: Injectable[]) {
+  }
+  public evaluate(ic : ICInterrogatable) : boolean {
+    for (let injectable of this.injectables) {
+      if (injectable.evaluate(ic)) {
+        return true;
+      }
+    }
+    return false;
+  }
+  public get(ic: ICCreator) : Promise<any> {
+    for (let injectable of this.injectables) {
+      if (injectable.evaluate(ic as any as ICInterrogatable)) {
+        return injectable.get(ic);
+      }
+    }
+    return Promise.reject('No matching injectable found');
+  }  
 }
 
 export class Registrator {

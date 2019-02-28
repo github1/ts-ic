@@ -1,5 +1,10 @@
 export type Selector = any;
 
+export interface RichSelector {
+  selector: any;
+  condition?: () => boolean;
+}
+
 export interface ICRegistrateable {
   register(selector : Selector, injectable : any) : ICC;
 }
