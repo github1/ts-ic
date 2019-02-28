@@ -1,6 +1,7 @@
 import {
   ICCreator,
-  ICInterrogatable, ICRegistrateable,
+  ICInterrogatable,
+  ICRegistrateable,
   Selector,
 } from './interfaces';
 

@@ -18,7 +18,6 @@ export interface ICCreator{
 }
 
 export interface ICInterrogatable {
-  hasConfig(selector : Selector) : boolean;
   hasSelector(selector : Selector) : boolean;
 }
 

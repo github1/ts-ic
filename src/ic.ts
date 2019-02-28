@@ -48,17 +48,6 @@ const createFromAllScopes = <T>(
   });
 };
 
-const hasConfigFromAllScopes = (selector : Selector, index : number = 0, providedScopes : ICC[] = scopes) : boolean => {
-  const ic : ICC = scopeAt(index);
-  if (ic) {
-    if (ic.hasConfig(selector)) {
-      return true;
-    }
-    return hasConfigFromAllScopes(selector, index + 1, providedScopes);
-  }
-  return false;
-};
-
 const hasSelectorFromAllScopes = (selector : Selector, index : number = 0, providedScopes : ICC[] = scopes) : boolean => {
   const ic : ICC = scopeAt(index);
   if (ic) {
@@ -83,7 +72,6 @@ export class ICScope implements ICC {
   public attached : boolean = false;
   private readonly id : string;
   private readonly registry : Map<Selector, Injectable> = new Map<Selector, Injectable>();
-  private readonly configs : Set<Selector> = new Set<Selector>();
 
   constructor(id? : string) {
     this.id = id || v4();
@@ -140,10 +128,6 @@ export class ICScope implements ICC {
     return false;
   }
 
-  public hasConfig(selector : Selector) : boolean {
-    return this.configs.has(selector);
-  }
-
   public getInjectable(selector: Selector): Injectable {
     return this.registry.get(selector);
   }
@@ -195,10 +179,6 @@ class ICRootScopeReference extends ICScope {
     scopeAt()
       .withConfig(...config);
     return this;
-  }
-
-  public hasConfig(selector : Selector) : boolean {
-    return hasConfigFromAllScopes(selector);
   }
 
   public hasSelector(selector : Selector) : boolean {
