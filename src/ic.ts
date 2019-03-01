@@ -1,6 +1,12 @@
-import {ICC, ICCreator, RichSelector, Selector} from './interfaces';
 import {
-  CompositeInjectable, ConditionalInjectable,
+  ICC,
+  ICCreator,
+  RichSelector,
+  Selector
+} from './interfaces';
+import {
+  CompositeInjectable,
+  ConditionalInjectable,
   Injectable,
   PromiseInjectable,
   StaticInjectable,
@@ -50,7 +56,7 @@ const hasSelectorFromAllScopes = (selector : Selector, index : number = 0, provi
   return false;
 };
 
-const wire = <T>(t : any, creator : ICCreator) : Promise<T> => {
+const wireWithCreator = <T>(t : any, creator : ICCreator) : Promise<T> => {
   const injectionContext : ParameterInjectionContext = classParameterInjectionContext
     .get(t.name)
     .get(CONSTRUCTOR_KEY);
@@ -59,6 +65,56 @@ const wire = <T>(t : any, creator : ICCreator) : Promise<T> => {
       return new t(...params) as T;
     });
 };
+
+export function register(selector : Selector, injectable : any) : typeof IC {
+  scopeAt()
+    .register(selector, injectable);
+  return IC;
+}
+
+export function create<T>(selector : Selector) : Promise<T> {
+  return createFromAllScopes(selector, this);
+}
+
+export function wire<T>(t : any) : Promise<T> {
+  return scopeAt()
+    .wire(t);
+}
+
+export function scope(handler? : (scope? : IC) => void | Promise<any>) : Promise<IC> {
+  const newScope : IC = new IC();
+  if (handler) {
+    scopes.push(newScope);
+    const result : void | Promise<any> = handler(newScope);
+    if (result) {
+      return result.then(() => {
+        scopes.pop();
+        return newScope;
+      });
+    } else {
+      scopes.pop();
+    }
+  }
+  return Promise.resolve(newScope);
+}
+
+export function withConfig(...config : any[]) : typeof IC {
+  scopeAt()
+    .withConfig(...config);
+  return IC;
+}
+
+export function hasSelector(selector : Selector) : boolean {
+  return hasSelectorFromAllScopes(selector);
+}
+
+export function resetAll() : typeof IC {
+  while (scopes.length > 1) {
+    scopes.pop();
+  }
+  scopes.push(new IC());
+  return IC;
+}
 
 export class IC implements ICC {
   private readonly id : string;
@@ -70,53 +126,31 @@ export class IC implements ICC {
   }
 
   public static register(selector : Selector, injectable : any) : typeof IC {
-    scopeAt()
-      .register(selector, injectable);
-    return this;
+    return register(selector, injectable);
   }
 
   public static create<T>(selector : Selector) : Promise<T> {
-    return createFromAllScopes(selector, this);
+    return create(selector);
   }
 
   public static wire<T>(t : any) : Promise<T> {
-    return scopeAt()
-      .wire(t);
+    return wire(t);
   }
 
   public static scope(handler? : (scope? : IC) => void | Promise<any>) : Promise<IC> {
-    const newScope : IC = new IC();
-    if (handler) {
-      scopes.push(newScope);
-      const result : void | Promise<any> = handler(newScope);
-      if (result) {
-        return result.then(() => {
-          scopes.pop();
-          return newScope;
-        });
-      } else {
-        scopes.pop();
-      }
-    }
-    return Promise.resolve(newScope);
+    return scope(handler);
   }
 
   public static withConfig(...config : any[]) : typeof IC {
-    scopeAt()
-      .withConfig(...config);
-    return this;
+    return withConfig(...config);
   }
 
   public static hasSelector(selector : Selector) : boolean {
-    return hasSelectorFromAllScopes(selector);
+    return hasSelector(selector);
   }
 
   public static resetAll() : typeof IC {
-    while (scopes.length > 1) {
-      scopes.pop();
-    }
-    scopes.push(new IC());
-    return this;
+    return resetAll();
   }
 
   public register(selector : Selector, injectable : any) : IC {
@@ -151,7 +185,7 @@ export class IC implements ICC {
   }
 
   public wire<T>(t : any) : Promise<T> {
-    return wire(t, this);
+    return wireWithCreator(t, this);
   }
 
   public scope(scope : () => void | Promise<any>) : Promise<IC> {
