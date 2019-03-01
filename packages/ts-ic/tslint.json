@@ -31,6 +31,7 @@
     "no-http-string": false,
     "no-increment-decrement": false,
     "no-parameter-properties": false,
+    "no-parameter-reassignment": false,
     "no-reference": false,
     "no-relative-imports": false,
     "no-require-imports": false,

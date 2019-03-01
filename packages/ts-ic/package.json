@@ -1,0 +1,23 @@
+{
+  "name": "@github1/ts-ic",
+  "version": "0.0.0",
+  "description": "A TypeScript dependency injection library",
+  "main": "./dist/src/index.js",
+  "types": "./dist/src/index.d.ts",
+  "scripts": {
+    "clean": "rimraf coverage dist tmp",
+    "watch": "tsc -w -p tsconfig.release.json",
+    "lint": "tslint -t stylish --exclude '**/*.js' --project 'tsconfig.json'",
+    "prepublishOnly": "npm run build",
+    "pretest": "npm run lint",
+    "test": "jest --runInBand --coverage",
+    "test:watch": "jest --watch",
+    "build": "npm run -s clean && npm run -s lint && tsc -p tsconfig.release.json",
+    "build:only": "npm run -s clean && tsc -p tsconfig.release.json"
+  },
+  "author": "John Collier <john.collier4@gmail.com>",
+  "license": "MIT",
+  "dependencies": {
+    "tslib": "1.9.3"
+  }
+}

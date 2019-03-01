@@ -2,7 +2,8 @@ export type Selector = any;
 
 export interface RichSelector {
   selector: any;
-  condition?: () => boolean;
+  singleton?: boolean;
+  condition?(): boolean;
 }
 
 export interface ICRegistrateable {

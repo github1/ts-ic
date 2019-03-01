@@ -60,7 +60,7 @@ export class CompositeInjectable implements Injectable {
   constructor(private readonly injectables: Injectable[]) {
   }
   public evaluate(ic : ICInterrogatable) : boolean {
-    for (let injectable of this.injectables) {
+    for (const injectable of this.injectables) {
       if (injectable.evaluate(ic)) {
         return true;
       }
@@ -68,13 +68,33 @@ export class CompositeInjectable implements Injectable {
     return false;
   }
   public get(ic: ICCreator) : Promise<any> {
-    for (let injectable of this.injectables) {
+    for (const injectable of this.injectables) {
       if (injectable.evaluate(ic as any as ICInterrogatable)) {
         return injectable.get(ic);
       }
     }
     return Promise.reject('No matching injectable found');
-  }  
+  }
+}
+
+export class CachedInjectable implements Injectable {
+  private readonly key: string;
+  constructor(private readonly injectable: Injectable,
+              private readonly cache: Map<any, any>) {
+    this.key = `key::${Math.floor(Math.random() * 1000000000)}`;
+  }
+  public evaluate(ic : ICInterrogatable) : boolean {
+    return this.injectable.evaluate(ic);
+  }
+  public get(ic: ICCreator) : Promise<any> {
+    if (this.cache.has(this.key)) {
+      return Promise.resolve(this.cache.get(this.key));
+    }
+    return this.injectable.get(ic).then((result: any) => {
+      this.cache.set(this.key, result);
+      return result;
+    });
+  }
 }
 
 export class Registrator {
