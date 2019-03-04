@@ -20,7 +20,7 @@ import {
 } from './inject';
 import {createParams} from './util';
 
-const injectableCache : Map<any,any> = new Map<any, any>();
+const injectableCache : Map<any, any> = new Map<any, any>();
 
 const scopes : ICC[] = [];
 
@@ -59,13 +59,43 @@ const hasSelectorFromAllScopes = (selector : Selector, index : number = 0, provi
   return false;
 };
 
-const wireWithCreator = <T>(t : any, creator : ICCreator) : Promise<T> => {
-  const injectionContext : ParameterInjectionContext = classParameterInjectionContext
+const wireWithCreator = <T>(t : any, creator : ICCreator, proxy : boolean = false) : Promise<T> => {
+  const injectionContext : ParameterInjectionContext = classParameterInjectionContext.has(t.name) ? classParameterInjectionContext
     .get(t.name)
-    .get(CONSTRUCTOR_KEY);
+    .get(CONSTRUCTOR_KEY) : undefined;
   return createParams(injectionContext, creator)
     .then((params : any[]) => {
-      return new t(...params) as T;
+      const created : T = new t(...params) as T;
+      if (proxy && classParameterInjectionContext.has(t.name)) {
+        const parameterContext : Map<any, ParameterInjectionContext> = classParameterInjectionContext.get(t.name);
+        type KeyParam = { key : any; params : any[] };
+        return Promise.all<KeyParam>(Array
+          .from(parameterContext)
+          .map(([key, value] : any[]) => {
+            return createParams(value, creator)
+              .then((params : any[]) => {
+                return {key, params};
+              });
+          }))
+          .then((keyParams : KeyParam[]) => {
+            return keyParams.reduce((proxyBehavior : any, keyParam : KeyParam) => {
+              proxyBehavior[keyParam.key] = (target : any, orig : Function) => () => orig.apply(target, keyParam.params);
+              return proxyBehavior;
+            }, {});
+          })
+          .then((proxyBehavior : any) => {
+            return new Proxy(created as any, {
+              // tslint:disable-next-line:no-reserved-keywords
+              get(target: any, name: any) {
+                if (proxyBehavior[name]) {
+                  return proxyBehavior[name](target, target[name]);
+                }
+                return target[name];
+              }
+            });
+          });
+      }
+      return created;
     });
 };
 
@@ -125,7 +155,7 @@ export class IC implements ICC {
         injectable = new CachedInjectable(injectable, injectableCache);
       }
       if (this.registry.has(selector)) {
-        const currentInjectable: Injectable = this.getInjectable(selector);
+        const currentInjectable : Injectable = this.getInjectable(selector);
         injectable = new CompositeInjectable([injectable, currentInjectable]);
       }
       this.registry.set(selector, injectable);
@@ -144,6 +174,10 @@ export class IC implements ICC {
 
   public wire<T>(t : any) : Promise<T> {
     return wireWithCreator(t, this);
+  }
+
+  public proxy<T>(t : any) : Promise<T> {
+    return wireWithCreator(t, this, true);
   }
 
   public scope(scope : () => void | Promise<any>) : Promise<IC> {
@@ -189,6 +223,11 @@ export function create<T>(selector : Selector) : Promise<T> {
 export function wire<T>(t : any) : Promise<T> {
   return scopeAt()
     .wire(t);
+}
+
+export function proxy<T>(t : any) : Promise<T> {
+  return scopeAt()
+    .proxy(t);
 }
 
 export function scope(handler? : (scope? : IC) => void | Promise<any>) : Promise<IC> {

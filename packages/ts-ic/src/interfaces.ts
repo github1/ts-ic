@@ -20,6 +20,7 @@ export interface ICInterrogatable {
 
 export interface ICC extends ICCreator, ICInterrogatable, ICRegistrateable {
   wire<T>(t : any) : Promise<T>;
+  proxy<T>(t : any) : Promise<T>;
   scope(scope : () => void | Promise<any>) : Promise<ICC>;
   withConfig(...config : any[]) : ICC;
 }

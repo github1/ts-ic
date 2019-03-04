@@ -28,6 +28,8 @@ export function inject(selector : Selector) {
       if (typeof target === 'function') {
         targetSelector = target.name;
         propertyKey = CONSTRUCTOR_KEY;
+      } else {
+        targetSelector = targetSelector.constructor.name;
       }
       if (!classParameterInjectionContext.has(targetSelector)) {
         classParameterInjectionContext.set(targetSelector, new Map<string | symbol, ParameterInjectionContext>());
@@ -46,18 +48,19 @@ export function inject(selector : Selector) {
     } else {
       typedPropertyDescriptor = parameterIndexOrPropertyDescriptor as TypedPropertyDescriptor<any>;
 
-      if (!typeRegistrator.has(target.constructor)) {
-        typeRegistrator.set(target.constructor, new Registrator());
+      const typeRegistratorKey: any = target.constructor;
+      if (!typeRegistrator.has(typeRegistratorKey)) {
+        typeRegistrator.set(typeRegistratorKey, new Registrator());
       }
-      const registrator : Registrator = typeRegistrator.get(target.constructor);
-
-      if (classParameterInjectionContext.has(target)
+      const parameterInjectContextKey: any = target.constructor.name;
+      const registrator : Registrator = typeRegistrator.get(typeRegistratorKey);
+      if (classParameterInjectionContext.has(parameterInjectContextKey)
         && classParameterInjectionContext
-          .get(target)
+          .get(parameterInjectContextKey)
           .has(propertyKey)) {
         registrator.include(selector, new FactoryInjectable((creator : ICCreator) => {
           return createParams(classParameterInjectionContext
-            .get(target)
+            .get(parameterInjectContextKey)
             .get(propertyKey), creator)
             .then((params : any[]) => {
               return typedPropertyDescriptor.value.apply(
