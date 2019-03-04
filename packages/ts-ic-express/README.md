@@ -1,6 +1,4 @@
-# IC
-
-
+# IC-express
 
 ## License
 

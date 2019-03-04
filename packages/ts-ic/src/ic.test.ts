@@ -3,6 +3,7 @@ import {
   create,
   IC,
   inject,
+  proxy,
   register,
   resetAll,
   scope,
@@ -156,6 +157,16 @@ describe('inject', () => {
       })
     });
   });
+  describe('proxy', () => {
+    it('injects into methods', async () => {
+      register('a', 'a-proxy-injected-value');
+      const something : Something3 = await proxy(Something3);
+      expect(something
+        .injectThis(undefined)).toBe('a-proxy-injected-value');
+      expect(something.injectFromConstructor()).toBe('a-proxy-injected-value');
+      expect(something.normalFunc()).toBe('normal');
+    });
+  });
 });
 
 class Config {
@@ -204,5 +215,23 @@ class Something {
 class Something2 {
   constructor(
     @inject('b') public value : string) {
+  }
+}
+
+class Something3 {
+  constructor(
+    @inject('a') public value : string) {
+  }
+
+  public injectThis(@inject('a') value : string) : string {
+    return value;
+  }
+
+  public injectFromConstructor() : String {
+    return this.value;
+  }
+
+  public normalFunc() : string {
+    return 'normal';
   }
 }
