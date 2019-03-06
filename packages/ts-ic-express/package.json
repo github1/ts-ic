@@ -1,6 +1,7 @@
 {
   "name": "@github1/ts-ic-express",
   "version": "0.0.0",
+  "private": true,
   "description": "ts-ic express middleware",
   "main": "./dist/src/index.js",
   "types": "./dist/src/index.d.ts",
